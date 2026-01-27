@@ -1,278 +1,245 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📞 Call App - Рабочая версия</title>
-    <style>
-        /* Стили оставляем прежними */
-        body { font-family: Arial; margin: 0; padding: 20px; background: #f0f2f5; }
-        .container { max-width: 500px; margin: 0 auto; }
-        .screen { display: none; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .screen.active { display: block; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; }
-        button { background: #1877f2; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; margin: 5px 0; }
-        .btn-success { background: #42b72a; }
-        .btn-danger { background: #dc3545; }
-        .friend-item { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .status-online { color: green; }
-        .status-offline { color: gray; }
-        .message { padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; }
-        .message.error { background: #f8d7da; color: #721c24; }
-        .message.success { background: #d4edda; color: #155724; }
-        .tabs { display: flex; margin-top: 20px; border-top: 1px solid #ddd; }
-        .tab { flex: 1; text-align: center; padding: 15px; cursor: pointer; }
-        .tab.active { border-bottom: 3px solid #1877f2; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Экран входа -->
-        <div id="auth-screen" class="screen active">
-            <h2>📞 Call App</h2>
-            <input type="text" id="username" placeholder="Имя пользователя">
-            <input type="password" id="password" placeholder="Пароль">
-            <button onclick="login()">Войти</button>
-            <button onclick="register()" class="btn-success">Зарегистрироваться</button>
-            <div id="auth-message" class="message"></div>
-        </div>
-        
-        <!-- Главный экран -->
-        <div id="main-screen" class="screen">
-            <h3>👤 <span id="current-user"></span></h3>
-            
-            <!-- Друзья -->
-            <div id="friends-tab">
-                <h4>Добавить друга</h4>
-                <input type="text" id="friend-name" placeholder="Имя пользователя друга">
-                <button onclick="addFriend()">Добавить друга</button>
-                
-                <h4>Мои друзья</h4>
-                <div id="friends-list"></div>
-            </div>
-            
-            <!-- Звонки -->
-            <div id="calls-tab" style="display: none;">
-                <h4>Совершить звонок</h4>
-                <input type="text" id="call-to" placeholder="Кому позвонить">
-                <button onclick="makeCall()">📞 Позвонить</button>
-                <button onclick="makeVideoCall()" class="btn-success">🎥 Видеозвонок</button>
-            </div>
-            
-            <!-- Панель -->
-            <div class="tabs">
-                <div class="tab active" onclick="showTab('friends')">👥 Друзья</div>
-                <div class="tab" onclick="showTab('calls')">📞 Звонки</div>
-                <div class="tab" onclick="logout()">🚪 Выйти</div>
-            </div>
-        </div>
-    </div>
+<script>
+// Хранилище данных
+let users = JSON.parse(localStorage.getItem('callapp_users')) || {};
+let currentUser = null;
+let onlineUsers = new Set();
 
-    <script>
-        let users = {};
-        let currentUser = null;
-        
-        // Загрузка при старте
-        window.onload = function() {
-            loadUsers();
-            const savedUser = localStorage.getItem('currentUser');
-            if (savedUser) {
-                const userData = users[savedUser];
-                if (userData) {
-                    loginUser(savedUser);
-                }
-            }
-        };
-        
-        // Загрузка пользователей
-        function loadUsers() {
-            const saved = localStorage.getItem('callapp_users');
-            users = saved ? JSON.parse(saved) : {};
-        }
-        
-        // Сохранение пользователей
-        function saveUsers() {
-            localStorage.setItem('callapp_users', JSON.stringify(users));
-        }
-        
-        // Регистрация
-        function register() {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value.trim();
-            
-            if (!username || !password) {
-                showMessage('Заполните все поля', 'error');
-                return;
-            }
-            
-            if (users[username]) {
-                showMessage('Имя пользователя занято', 'error');
-                return;
-            }
-            
-            users[username] = {
-                password: password,
-                friends: [],
-                calls: []
-            };
-            
-            saveUsers();
-            loginUser(username);
-            showMessage('Регистрация успешна!', 'success');
-        }
-        
-        // Вход
-        function login() {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value.trim();
-            
-            if (!username || !password) {
-                showMessage('Заполните все поля', 'error');
-                return;
-            }
-            
-            const user = users[username];
-            if (!user || user.password !== password) {
-                showMessage('Неверные данные', 'error');
-                return;
-            }
-            
-            loginUser(username);
-            showMessage('Вход выполнен!', 'success');
-        }
-        
-        // Вход пользователя
-        function loginUser(username) {
-            currentUser = username;
-            localStorage.setItem('currentUser', username);
-            
-            document.getElementById('auth-screen').classList.remove('active');
-            document.getElementById('main-screen').classList.add('active');
-            document.getElementById('current-user').textContent = username;
-            
-            loadFriends();
-        }
-        
-        // Добавить друга
-        function addFriend() {
-            const friendName = document.getElementById('friend-name').value.trim();
-            
-            if (!friendName) {
-                showMessage('Введите имя пользователя', 'error');
-                return;
-            }
-            
-            if (friendName === currentUser) {
-                showMessage('Нельзя добавить себя', 'error');
-                return;
-            }
-            
-            if (!users[friendName]) {
-                showMessage('Пользователь не найден', 'error');
-                return;
-            }
-            
-            const user = users[currentUser];
-            
-            if (user.friends.includes(friendName)) {
-                showMessage('Уже в друзьях', 'error');
-                return;
-            }
-            
-            user.friends.push(friendName);
-            saveUsers();
-            loadFriends();
-            document.getElementById('friend-name').value = '';
-            showMessage(`Друг ${friendName} добавлен!`, 'success');
-        }
-        
-        // Загрузить друзей
-        function loadFriends() {
-            const user = users[currentUser];
-            const list = document.getElementById('friends-list');
-            
-            if (!user.friends || user.friends.length === 0) {
-                list.innerHTML = '<p style="text-align: center; color: gray;">Нет друзей</p>';
-                return;
-            }
-            
-            list.innerHTML = user.friends.map(friend => `
-                <div class="friend-item">
-                    <div>
-                        <strong>${friend}</strong>
-                        <span class="status-online">● онлайн</span>
-                    </div>
-                    <div>
-                        <button onclick="makeCallTo('${friend}')" style="width: auto; padding: 5px 10px; margin: 0 5px;">📞</button>
-                        <button onclick="removeFriend('${friend}')" style="width: auto; padding: 5px 10px; background: #dc3545;">🗑️</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-        
-        // Удалить друга
-        function removeFriend(friendName) {
-            if (confirm(`Удалить ${friendName} из друзей?`)) {
-                const user = users[currentUser];
-                user.friends = user.friends.filter(f => f !== friendName);
-                saveUsers();
-                loadFriends();
-                showMessage('Друг удален', 'success');
-            }
-        }
-        
-        // Позвонить
-        function makeCall() {
-            const to = document.getElementById('call-to').value.trim();
-            if (to) {
-                makeCallTo(to);
-            }
-        }
-        
-        function makeCallTo(friend) {
-            showMessage(`Звонок ${friend}... (имитация)`, 'success');
-            // В реальном приложении здесь WebRTC
-        }
-        
-        function makeVideoCall() {
-            const to = document.getElementById('call-to').value.trim();
-            if (to) {
-                showMessage(`Видеозвонок ${to}... (имитация)`, 'success');
-            }
-        }
-        
-        // Показать вкладку
-        function showTab(tabName) {
-            document.querySelectorAll('#main-screen > div').forEach(div => {
-                if (div.id.includes('tab')) div.style.display = 'none';
-            });
-            document.getElementById(tabName + '-tab').style.display = 'block';
-            
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-        }
-        
-        // Выход
-        function logout() {
-            if (confirm('Выйти из аккаунта?')) {
-                currentUser = null;
-                localStorage.removeItem('currentUser');
-                document.getElementById('main-screen').classList.remove('active');
-                document.getElementById('auth-screen').classList.add('active');
-                document.getElementById('username').value = '';
-                document.getElementById('password').value = '';
-            }
-        }
-        
-        // Сообщения
-        function showMessage(text, type) {
-            const msg = document.getElementById('auth-message');
-            msg.textContent = text;
-            msg.className = `message ${type}`;
-            setTimeout(() => msg.textContent = '', 3000);
-        }
-    </script>
-</body>
-</html>
+// Загрузка при старте
+window.onload = function() {
+    // Проверяем сохранённого пользователя
+    const savedUser = localStorage.getItem('callapp_currentUser');
+    if (savedUser && users[savedUser]) {
+        loginUser(savedUser);
+    }
+};
+
+// ================ ФУНКЦИИ АВТОРИЗАЦИИ ================
+
+function register() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
+    
+    if (!username || !password) {
+        showMessage('Заполните все поля', 'error');
+        return;
+    }
+    
+    if (users[username]) {
+        showMessage('Имя пользователя занято', 'error');
+        return;
+    }
+    
+    users[username] = {
+        password: password,
+        friends: [],
+        calls: []
+    };
+    
+    localStorage.setItem('callapp_users', JSON.stringify(users));
+    loginUser(username);
+    showMessage('Регистрация успешна!', 'success');
+}
+
+function login() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
+    
+    if (!username || !password) {
+        showMessage('Заполните все поля', 'error');
+        return;
+    }
+    
+    const user = users[username];
+    
+    if (!user || user.password !== password) {
+        showMessage('Неверные данные', 'error');
+        return;
+    }
+    
+    loginUser(username);
+    showMessage('Вход выполнен!', 'success');
+}
+
+function loginUser(username) {
+    currentUser = username;
+    onlineUsers.add(username);
+    localStorage.setItem('callapp_currentUser', username);
+    
+    document.getElementById('auth-screen').classList.remove('active');
+    document.getElementById('main-screen').classList.add('active');
+    document.getElementById('current-user').textContent = username;
+    
+    loadFriends();
+}
+
+// ================ ФУНКЦИИ ДЛЯ ДРУЗЕЙ ================
+
+function addFriend() {
+    const friendName = document.getElementById('friend-name').value.trim();
+    
+    if (!friendName) {
+        showMessage('Введите имя пользователя', 'error');
+        return;
+    }
+    
+    if (friendName === currentUser) {
+        showMessage('Нельзя добавить себя', 'error');
+        return;
+    }
+    
+    if (!users[friendName]) {
+        showMessage('Пользователь не найден', 'error');
+        return;
+    }
+    
+    const user = users[currentUser];
+    
+    if (user.friends.includes(friendName)) {
+        showMessage('Уже в друзьях', 'error');
+        return;
+    }
+    
+    user.friends.push(friendName);
+    localStorage.setItem('callapp_users', JSON.stringify(users));
+    loadFriends();
+    
+    document.getElementById('friend-name').value = '';
+    showMessage(`Друг ${friendName} добавлен!`, 'success');
+}
+
+function loadFriends() {
+    if (!currentUser || !users[currentUser]) return;
+    
+    const user = users[currentUser];
+    const friendsList = document.getElementById('friends-list');
+    
+    if (!user.friends || user.friends.length === 0) {
+        friendsList.innerHTML = '<p style="text-align: center; color: gray; padding: 20px;">Нет друзей</p>';
+        return;
+    }
+    
+    friendsList.innerHTML = user.friends.map(friend => `
+        <div class="friend-item" style="
+            background: #f8f9fa; 
+            padding: 12px; 
+            margin: 8px 0; 
+            border-radius: 8px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+        ">
+            <div>
+                <strong>${friend}</strong>
+                <span style="color: green; font-size: 12px; margin-left: 10px;">● онлайн</span>
+            </div>
+            <div>
+                <button onclick="makeCallTo('${friend}')" style="
+                    background: #28a745; 
+                    color: white; 
+                    border: none; 
+                    padding: 5px 10px; 
+                    border-radius: 5px; 
+                    margin-right: 5px;
+                    cursor: pointer;
+                ">📞</button>
+                <button onclick="removeFriend('${friend}')" style="
+                    background: #dc3545; 
+                    color: white; 
+                    border: none; 
+                    padding: 5px 10px; 
+                    border-radius: 5px;
+                    cursor: pointer;
+                ">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function removeFriend(friendName) {
+    if (confirm(`Удалить ${friendName} из друзей?`)) {
+        const user = users[currentUser];
+        user.friends = user.friends.filter(f => f !== friendName);
+        localStorage.setItem('callapp_users', JSON.stringify(users));
+        loadFriends();
+        showMessage('Друг удален', 'success');
+    }
+}
+
+// ================ ФУНКЦИИ ЗВОНКОВ ================
+
+function makeCall() {
+    const toUser = document.getElementById('call-to').value.trim();
+    if (toUser) {
+        makeCallTo(toUser);
+    } else {
+        showMessage('Введите имя пользователя', 'error');
+    }
+}
+
+function makeCallTo(friendName) {
+    if (!users[friendName]) {
+        showMessage('Пользователь не найден', 'error');
+        return;
+    }
+    
+    showMessage(`Звонок ${friendName}... (имитация)`, 'success');
+    // В будущем здесь будет реальный звонок через WebRTC
+}
+
+function makeVideoCall() {
+    const toUser = document.getElementById('call-to').value.trim();
+    if (toUser) {
+        showMessage(`Видеозвонок ${toUser}... (имитация)`, 'success');
+    } else {
+        showMessage('Введите имя пользователя', 'error');
+    }
+}
+
+// ================ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ================
+
+function showTab(tabName) {
+    // Скрываем все вкладки
+    document.getElementById('friends-tab').style.display = 'none';
+    document.getElementById('calls-tab').style.display = 'none';
+    
+    // Показываем нужную вкладку
+    document.getElementById(tabName + '-tab').style.display = 'block';
+    
+    // Обновляем активные табы
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.classList.add('active');
+}
+
+function logout() {
+    if (confirm('Выйти из аккаунта?')) {
+        currentUser = null;
+        localStorage.removeItem('callapp_currentUser');
+        document.getElementById('main-screen').classList.remove('active');
+        document.getElementById('auth-screen').classList.add('active');
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+    }
+}
+
+function showMessage(text, type) {
+    const messageDiv = document.getElementById('auth-message');
+    if (!messageDiv) return;
+    
+    messageDiv.textContent = text;
+    messageDiv.className = 'message ' + type;
+    messageDiv.style.cssText = `
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+        text-align: center;
+        background: ${type === 'error' ? '#f8d7da' : '#d4edda'};
+        color: ${type === 'error' ? '#721c24' : '#155724'};
+    `;
+    
+    setTimeout(() => {
+        messageDiv.textContent = '';
+    }, 3000);
+}
+</script>
