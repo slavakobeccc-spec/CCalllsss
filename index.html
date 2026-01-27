@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📞 Приложение для звонков</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .app-container {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .screen {
+            padding: 30px;
+            display: none;
+        }
+        
+        .screen.active {
+            display: block;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        
+        h2 {
+            color: #444;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+        
+        .user-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #6a11cb;
+            box-shadow: 0 0 0 3px rgba(106, 17, 203, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-small {
+            padding: 10px 15px;
+            font-size: 14px;
+            width: auto;
+        }
+        
+        .btn-call {
+            background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+        }
+        
+        .btn-video {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+        }
+        
+        .btn-logout {
+            background: #dc3545;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f1f3f4;
+            border-top: 1px solid #ddd;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .tab:hover {
+            background: #e8eaed;
+        }
+        
+        .tab.active {
+            background: white;
+            color: #6a11cb;
+            border-bottom: 3px solid #6a11cb;
+        }
+        
+        .list-container {
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        
+        .list-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .status-online {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .status-offline {
+            color: #dc3545;
+        }
+        
+        .call-status {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: #6a11cb;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .message {
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .empty-message {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+        }
+        
+        .friend-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .call-history-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .call-time {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .direct-call-container {
+            background: #f0f8ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Экран авторизации -->
+        <div id="auth-screen" class="screen active">
+            <h1>📞 Приложение для звонков</h1>
+            <div class="input-group">
+                <input type="text" id="username" placeholder="Имя пользователя" autocomplete="off">
+                <input type="password" id="password" placeholder="Пароль">
+                <button class="btn" onclick="login()">Войти</button>
+                <button class="btn" onclick="register()" style="background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%)">
+                    Зарегистрироваться
+                </button>
+            </div>
+            <div id="auth-message" class="message"></div>
+        </div>
+        
+        <!-- Главный экран -->
+        <div id="main-screen" class="screen">
+            <div class="user-info">
+                <h2>👤 <span id="current-user">Иван</span></h2>
+            </div>
+            
+            <!-- Вкладка Друзья -->
+            <div id="friends-tab" class="tab-content">
+                <div class="input-group">
+                    <input type="text" id="friend-username" placeholder="Имя пользователя друга">
+                    <button class="btn" onclick="addFriend()">Добавить друга</button>
+                </div>
+                <div id="friends-list" class="list-container">
+                    <!-- Список друзей -->
+                </div>
+            </div>
+            
+            <!-- Вкладка Звонки -->
+            <div id="calls-tab" class="tab-content" style="display: none;">
+                <div class="direct-call-container">
+                    <h3>Прямой звонок</h3>
+                    <input type="text" id="call-to-user" placeholder="Имя пользователя">
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-call" onclick="makeCall()">📞 Позвонить</button>
+                        <button class="btn btn-video" onclick="makeVideoCall()">🎥 Видеозвонок</button>
+                    </div>
+                </div>
+                
+                <h3>История звонков</h3>
+                <div id="call-history" class="list-container">
+                    <!-- История звонков -->
+                </div>
+            </div>
+            
+            <!-- Статус звонка -->
+            <div id="call-status" class="call-status" style="display: none;">
+                <h3>📞 Звонок</h3>
+                <p id="call-status-text">Соединение...</p>
+                <div class="controls">
+                    <button class="control-btn" onclick="muteCall()">🔇</button>
+                    <button class="control-btn" onclick="holdCall()">⏸️</button>
+                    <button class="control-btn" onclick="endCall()" style="background: #dc3545;">📞</button>
+                </div>
+            </div>
+            
+            <!-- Панель вкладок -->
+            <div class="tabs">
+                <div class="tab active" onclick="showTab('friends')">👥 Друзья</div>
+                <div class="tab" onclick="showTab('calls')">📞 Звонки</div>
+                <div class="tab" onclick="logout()">🚪 Выйти</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Хранилище данных
+        let users = {};
+        let currentUser = null;
+        let isInCall = false;
+        let currentCall = null;
+        let onlineUsers = new Set();
+        
+        // Загрузка данных из localStorage
+        function loadData() {
+            const savedUsers = localStorage.getItem('callapp_users');
+            if (savedUsers) {
+                users = JSON.parse(savedUsers);
+            }
+            
+            const savedCurrentUser = localStorage.getItem('callapp_currentUser');
+            if (savedCurrentUser) {
+                currentUser = savedCurrentUser;
+                showMainScreen();
+            }
+        }
+        
+        // Сохранение данных
+        function saveData() {
+            localStorage.setItem('callapp_users', JSON.stringify(users));
+        }
+        
+        // Регистрация
+        function register() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            
+            if (!username || !password) {
+                showMessage('Заполните все поля', 'error');
+                return;
+            }
+            
+            if (users[username]) {
+                showMessage('Имя пользователя уже занято', 'error');
+                return;
+            }
+            
+            if (password.length < 3) {
+                showMessage('Пароль должен быть не менее 3 символов', 'error');
+                return;
+            }
+            
+            // Создаем пользователя
+            users[username] = {
+                password: password,
+                friends: [],
+                calls: []
+            };
+            
+            saveData();
+            loginUser(username);
+        }
+        
+        // Вход
+        function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            
+            if (!username || !password) {
+                showMessage('Заполните все поля', 'error');
+                return;
+            }
+            
+            const user = users[username];
+            
+            if (!user || user.password !== password) {
+                showMessage('Неверное имя пользователя или пароль', 'error');
+                return;
+            }
+            
+            loginUser(username);
+        }
+        
+        // Вход пользователя
+        function loginUser(username) {
+            currentUser = username;
+            localStorage.setItem('callapp_currentUser', username);
+            onlineUsers.add(username);
+            
+            showMainScreen();
+            showMessage('Добро пожаловать, ' + username + '!', 'success');
+            
+            // Очищаем поля
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+        
+        // Показать главный экран
+        function showMainScreen() {
+            document.getElementById('auth-screen').classList.remove('active');
+            document.getElementById('main-screen').classList.add('active');
+            document.getElementById('current-user').textContent = currentUser;
+            
+            loadFriends();
+            loadCallHistory();
+            updateOnlineStatus();
+        }
+        
+        // Показать вкладку
+        function showTab(tabName) {
+            // Скрыть все вкладки
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Убрать активный класс
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Показать нужную вкладку
+            document.getElementById(tabName + '-tab').style.display = 'block';
+            
+            // Добавить активный класс
+            event.target.classList.add('active');
+            
+            // Скрыть статус звонка если не в звонке
+            if (!isInCall) {
+                document.getElementById('call-status').style.display = 'none';
+            }
+        }
+        
+        // Добавить друга
+        function addFriend() {
+            const friendUsername = document.getElementById('friend-username').value.trim();
+            
+            if (!friendUsername) {
+                showMessage('Введите имя пользователя', 'error');
+                return;
+            }
+            
+            if (friendUsername === currentUser) {
+                showMessage('Нельзя добавить себя в друзья', 'error');
+                return;
+            }
+            
+            if (!users[friendUsername]) {
+                showMessage('Пользователь не найден', 'error');
+                return;
+            }
+            
+            const user = users[currentUser];
+            
+            if (user.friends.includes(friendUsername)) {
+                showMessage('Этот пользователь уже в друзьях', 'error');
+                return;
+            }
+            
+            user.friends.push(friendUsername);
+            saveData();
+            
+            document.getElementById('friend-username').value = '';
+            showMessage('Друг ' + friendUsername + ' добавлен', 'success');
+            loadFriends();
+        }
+        
+        // Загрузить друзей
+        function loadFriends() {
+            const user = users[currentUser];
+            const friendsList = document.getElementById('friends-list');
+            
+            if (!user.friends || user.friends.length === 0) {
+                friendsList.innerHTML = '<div class="empty-message">У вас пока нет друзей</div>';
+                return;
+            }
+            
+            friendsList.innerHTML = user.friends.map(friend => `
+                <div class="list-item">
+                    <div>
+                        <strong>${friend}</strong>
+                        <span class="${onlineUsers.has(friend) ? 'status-online' : 'status-offline'}">
+                            ${onlineUsers.has(friend) ? '● онлайн' : '○ офлайн'}
+                        </span>
+                    </div>
+                    <div class="friend-actions">
+                        ${onlineUsers.has(friend) ? `
+                            <button class="btn btn-small btn-call" onclick="startCall('${friend}', 'voice')">📞</button>
+                            <button class="btn btn-small btn-video" onclick="startCall('${friend}', 'video')">🎥</button>
+                        ` : ''}
+                        <button class="btn btn-small" onclick="removeFriend('${friend}')" style="background: #dc3545;">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Удалить друга
+        function removeFriend(friendUsername) {
+            if (confirm('Удалить ' + friendUsername + ' из друзей?')) {
+                const user = users[currentUser];
+                user.friends = user.friends.filter(f => f !== friendUsername);
+                saveData();
+                loadFriends();
+                showMessage('Друг удален', 'success');
+            }
+        }
+        
+        // Начать звонок
+        function startCall(username, type) {
+            if (isInCall) {
+                showMessage('Завершите текущий звонок сначала', 'error');
+                return;
+            }
+            
+            if (!onlineUsers.has(username)) {
+                showMessage('Пользователь не в сети', 'error');
+                return;
+            }
+            
+            currentCall = {
+                to: username,
+                type: type,
+                startTime: new Date()
+            };
+            
+            isInCall = true;
+            
+            // Показать статус звонка
+            document.getElementById('call-status').style.display = 'block';
+            document.getElementById('call-status-text').innerHTML = 
+                `Звонок <strong>${username}</strong>...`;
+            
+            // Добавить в историю
+            addToCallHistory(username, type, 'outgoing');
+            
+            // Через 2 секунды "соединить"
+            setTimeout(() => {
+                document.getElementById('call-status-text').innerHTML = 
+                    `Разговор с <strong>${username}</strong><br>
+                    <span style="color: #28a745;">● Соединено</span>`;
+            }, 2000);
+            
+            showMessage(`Звонок ${username} начат`, 'success');
+        }
+        
+        // Прямой звонок
+        function makeCall() {
+            const username = document.getElementById('call-to-user').value.trim();
+            if (username) {
+                startCall(username, 'voice');
+            }
+        }
+        
+        function makeVideoCall() {
+            const username = document.getElementById('call-to-user').value.trim();
+            if (username) {
+                startCall(username, 'video');
+            }
+        }
+        
+        // Завершить звонок
+        function endCall() {
+            if (currentCall) {
+                const duration = Math.floor((new Date() - currentCall.startTime) / 1000);
+                const minutes = Math.floor(duration / 60);
+                const seconds = duration % 60;
+                
+                document.getElementById('call-status-text').innerHTML = 
+                    `Звонок завершен<br>
+                    Длительность: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                setTimeout(() => {
+                    document.getElementById('call-status').style.display = 'none';
+                    isInCall = false;
+                    currentCall = null;
+                }, 3000);
+            }
+        }
+        
+        // Mute
+        function muteCall() {
+            const btn = event.target;
+            if (btn.textContent === '🔇') {
+                btn.textContent = '🔈';
+                showMessage('Микрофон выключен', 'info');
+            } else {
+                btn.textContent = '🔇';
+                showMessage('Микрофон включен', 'info');
+            }
+        }
+        
+        // Hold
+        function holdCall() {
+            const btn = event.target;
+            if (btn.textContent === '⏸️') {
+                btn.textContent = '▶️';
+                showMessage('Звонок на удержании', 'info');
+            } else {
+                btn.textContent = '⏸️';
+                showMessage('Звонок возобновлен', 'info');
+            }
+        }
+        
+        // Добавить в историю
+        function addToCallHistory(username, type, direction) {
+            const user = users[currentUser];
+            const call = {
+                username: username,
+                type: type,
+                direction: direction,
+                time: new Date().toLocaleTimeString(),
+                date: new Date().toLocaleDateString()
+            };
+            
+            user.calls = user.calls || [];
+            user.calls.unshift(call);
+            
+            if (user.calls.length > 20) {
+                user.calls = user.calls.slice(0, 20);
+            }
+            
+            saveData();
+            loadCallHistory();
+        }
+        
+        // Загрузить историю
+        function loadCallHistory() {
+            const user = users[currentUser];
+            const callHistory = document.getElementById('call-history');
+            
+            if (!user.calls || user.calls.length === 0) {
+                callHistory.innerHTML = '<div class="empty-message">История звонков пуста</div>';
+                return;
+            }
+            
+            callHistory.innerHTML = user.calls.map(call => `
+                <div class="call-history-item">
+                    <div><strong>${call.username}</strong></div>
+                    <div>${call.type === 'voice' ? '📞 Голосовой' : '🎥 Видео'} • 
+                         ${call.direction === 'outgoing' ? 'Исходящий' : 'Входящий'}</div>
+                    <div class="call-time">${call.date} ${call.time}</div>
+                    <button class="btn btn-small" onclick="startCall('${call.username}', '${call.type}')" 
+                            style="margin-top: 5px; width: 100%;">
+                        📞 Позвонить снова
+                    </button>
+                </div>
+            `).join('');
+        }
+        
+        // Обновить онлайн статус
+        function updateOnlineStatus() {
+            // Симулируем онлайн пользователей
+            const allUsers = Object.keys(users);
+            onlineUsers = new Set([currentUser]);
+            
+            // Некоторые пользователи онлайн
+            allUsers.forEach(user => {
+                if (user !== currentUser && Math.random() > 0.3) {
+                    onlineUsers.add(user);
+                }
+            });
+            
+            // Обновляем список друзей если он открыт
+            if (document.getElementById('friends-tab').style.display !== 'none') {
+                loadFriends();
+            }
+        }
+        
+        // Выход
+        function logout() {
+            if (confirm('Выйти из аккаунта?')) {
+                if (isInCall) {
+                    endCall();
+                }
+                
+                onlineUsers.delete(currentUser);
+                currentUser = null;
+                localStorage.removeItem('callapp_currentUser');
+                
+                document.getElementById('main-screen').classList.remove('active');
+                document.getElementById('auth-screen').classList.add('active');
+            }
+        }
+        
+        // Показать сообщение
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('auth-message');
+            messageDiv.textContent = text;
+            messageDiv.className = 'message ' + (type || '');
+            
+            setTimeout(() => {
+                messageDiv.textContent = '';
+                messageDiv.className = 'message';
+            }, 3000);
+        }
+        
+        // Симулировать входящий звонок
+        function simulateIncomingCall() {
+            if (!isInCall && currentUser) {
+                const allUsers = Object.keys(users).filter(u => u !== currentUser);
+                if (allUsers.length > 0) {
+                    const caller = allUsers[Math.floor(Math.random() * allUsers.length)];
+                    
+                    if (confirm(caller + ' звонит вам. Принять звонок?')) {
+                        currentCall = {
+                            from: caller,
+                            type: Math.random() > 0.5 ? 'voice' : 'video',
+                            startTime: new Date()
+                        };
+                        
+                        isInCall = true;
+                        document.getElementById('call-status').style.display = 'block';
+                        document.getElementById('call-status-text').innerHTML = 
+                            `Входящий звонок от <strong>${caller}</strong>`;
+                        
+                        addToCallHistory(caller, currentCall.type, 'incoming');
+                    }
+                }
+            }
+        }
+        
+        // Инициализация
+        window.onload = function() {
+            loadData();
+            
+            // Симулируем входящие звонки
+            setInterval(() => {
+                if (Math.random() > 0.7 && currentUser && !isInCall) {
+                    setTimeout(simulateIncomingCall, 1000);
+                }
+            }, 15000);
+            
+            // Обновляем онлайн статус
+            setInterval(() => {
+                if (currentUser) {
+                    updateOnlineStatus();
+                }
+            }, 10000);
+        };
+    </script>
+</body>
+</html>
